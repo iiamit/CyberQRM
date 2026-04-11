@@ -1,0 +1,15 @@
+{
+  "name": "cyberqrm",
+  "version": "1.0.0",
+  "description": "FAIR v3.1 Quantified Risk Management Platform",
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev": "npm-run-all --parallel dev:backend dev:frontend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
+}
