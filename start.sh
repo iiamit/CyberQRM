@@ -63,7 +63,7 @@ start_in_terminal() {
     osascript -e "
       tell application \"Terminal\"
         do script \"printf '\\\\033]0;${title}\\\\007'; ${full_cmd}\"
-        set frontmost to true
+        activate
       end tell"
   elif command -v gnome-terminal &>/dev/null; then
     gnome-terminal --title="$title" -- bash -c "${full_cmd}; exec bash" 2>/dev/null &
