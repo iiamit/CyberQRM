@@ -1,6 +1,6 @@
 {
   "name": "cyberqrm",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "FAIR v3.1 Quantified Risk Management Platform",
   "scripts": {
     "install:all": "npm install --prefix backend && npm install --prefix frontend",
