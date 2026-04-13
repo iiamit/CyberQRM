@@ -19,7 +19,9 @@ A local, open-source platform for **quantitative cybersecurity risk assessment**
 
 ## Screenshots
 
-> _Add screenshots of your dashboard, scenario editor, and simulation results here._
+![Dashboard](screenshots/dashboard.png)
+
+![Simulation Results](screenshots/simulation.png)
 
 ---
 
