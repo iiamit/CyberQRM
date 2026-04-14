@@ -7,13 +7,16 @@ A local, open-source platform for **quantitative cybersecurity risk assessment**
 ## Features
 
 - **FAIR-based risk modelling** — define Threat Event Frequency, Vulnerability, Asset Value, and Loss Event Impact for each scenario using triangular, lognormal, or point distributions
+- **Multi-basis Asset Valuation** — model asset value as a sum of multiple dimensions (replacement cost, revenue impact, regulatory exposure, business interruption, reputational value) each with its own distribution
+- **Primary & Secondary Loss** — FAIR-standard split of loss magnitude into Primary loss forms (Productivity, Response, Replacement) and Secondary loss forms (Fines & Judgements, Reputational Damage, Competitive Advantage), separated by a Secondary Loss Event Frequency (SLEF). Formula: `LM = PLM + SLEF × SLEM`
+- **MITRE ATT&CK integration** — browse and select ATT&CK techniques on the TEF and Vulnerability steps; receive active range suggestions based on technique prevalence tiers and mitigation coverage
 - **Monte Carlo simulation engine** — 10,000-iteration simulations with configurable seeds for reproducible results
 - **Annualised Loss Expectancy (ALE) analytics** — mean, median, percentiles (P10–P99), and 90 %/95 % confidence intervals
 - **Sensitivity / tornado charts** — identify which FAIR components drive the most risk
 - **Control effectiveness analysis** — model current and proposed controls; calculate ALE reduction, ROI, and payback period
 - **Portfolio management** — aggregate multiple scenarios to understand organisation-wide risk
 - **Persistent local storage** — SQLite database, no data leaves your machine
-- **Fully offline** — no internet connection required after installation
+- **Fully offline** — no internet connection required after installation (ATT&CK dataset downloaded once at install time)
 
 ---
 
@@ -47,10 +50,10 @@ A local, open-source platform for **quantitative cybersecurity risk assessment**
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/CyberQRM.git
+git clone https://github.com/iiamit/CyberQRM.git
 cd CyberQRM
 
-# Run the installer (checks Node version, installs all dependencies)
+# Run the installer (checks Node version, installs all dependencies, downloads ATT&CK data)
 chmod +x install.sh
 ./install.sh
 ```
@@ -58,11 +61,11 @@ chmod +x install.sh
 ### Windows
 
 ```bat
-# Clone the repository (Git Bash, PowerShell, or any terminal)
-git clone https://github.com/<your-username>/CyberQRM.git
+REM Clone the repository (Git Bash, PowerShell, or any terminal)
+git clone https://github.com/iiamit/CyberQRM.git
 cd CyberQRM
 
-# Run the installer (double-click or run from a terminal)
+REM Run the installer (double-click or run from a terminal)
 install.bat
 ```
 
@@ -70,6 +73,7 @@ The installer will:
 1. Verify Node.js 22.5+ is present and print a helpful error if it isn't
 2. Install root, backend, and frontend `npm` dependencies
 3. Create the `backend/data/` directory for the SQLite database
+4. Download the MITRE ATT&CK Enterprise dataset (~30 MB) — if the download fails the app still works; ATT&CK features will show "data unavailable" until the file is present
 
 ---
 
@@ -103,6 +107,27 @@ Once running, access the app at:
 
 ---
 
+## How It Works
+
+CyberQRM implements the FAIR v3.1 methodology in four steps:
+
+1. **Define a scenario** — name the asset, threat actor, and business context
+2. **Set FAIR parameters** — enter distributions for TEF, Vulnerability, Asset Value, and Loss Impact
+3. **Run simulation** — the engine samples each distribution 10,000 times and computes ALE
+4. **Analyse results** — review ALE percentiles, sensitivity drivers, and control ROI
+
+### Advanced Scenario Modelling
+
+**Multi-basis Asset Valuation** — toggle "Advanced: use multiple valuation bases" on the Asset Value step to define separate distributions for each value dimension. The simulation sums all bases per iteration.
+
+**Primary & Secondary Loss** — toggle "Advanced: split into Primary & Secondary loss" on the Loss Impact step to model primary direct costs and secondary stakeholder-imposed costs (fines, reputational damage, competitive loss) with a conditional SLEF probability. All amounts are in absolute USD.
+
+**MITRE ATT&CK** — on the TEF and Vulnerability steps, open the technique browser to filter by tactic, search by name or ID, and select relevant techniques. The platform suggests TEF ranges based on real-world prevalence tiers (sourced from Red Canary / CTID sightings) and vulnerability ranges based on how many ATT&CK mitigations you have implemented.
+
+The database is created automatically on first run (`backend/data/cyberqrm.db`). All data stays on your local machine.
+
+---
+
 ## Project Structure
 
 ```
@@ -110,15 +135,18 @@ CyberQRM/
 ├── backend/               # Express.js + TypeScript API
 │   ├── src/
 │   │   ├── index.ts       # Server entry point (port 3001)
-│   │   ├── db/            # SQLite adapter & schema
-│   │   ├── routes/        # REST endpoints (scenarios, controls, portfolios)
-│   │   ├── services/      # Business logic & Monte Carlo engine
+│   │   ├── db/            # SQLite adapter, schema & migrations
+│   │   ├── routes/        # REST endpoints (scenarios, controls, portfolios, ATT&CK)
+│   │   ├── services/      # Business logic, Monte Carlo engine & ATT&CK service
+│   │   ├── data/          # attack-prevalence.json (bundled TEF tier data)
 │   │   └── middleware/    # Error handling
-│   └── data/              # SQLite database (auto-created on first run)
+│   └── data/              # SQLite database + ATT&CK STIX file (auto-created)
 ├── frontend/              # React 18 + Vite + TypeScript
 │   └── src/
 │       ├── pages/         # Dashboard, Scenarios, Controls, Portfolios
 │       ├── components/    # Charts, forms, UI primitives
+│       │   └── forms/     # ScenarioForm, AttackTechniqueSelector,
+│       │                  #   ValuationBasisList, PrimarySecondaryLossForm
 │       ├── store/         # Zustand state management
 │       └── utils/         # API client, formatting, report generator
 ├── shared/                # Shared TypeScript types (FAIR data model)
@@ -141,19 +169,7 @@ CyberQRM/
 | Backend framework | Express.js, TypeScript |
 | Database | SQLite via Node.js built-in `node:sqlite` |
 | Validation | Zod |
-
----
-
-## How It Works
-
-CyberQRM implements the FAIR methodology in four steps:
-
-1. **Define a scenario** — name the asset, threat actor, and business context
-2. **Set FAIR parameters** — enter distributions for TEF, Vulnerability, Asset Value, and Loss Impact
-3. **Run simulation** — the engine samples each distribution 10,000 times and computes ALE
-4. **Analyse results** — review ALE percentiles, sensitivity drivers, and control ROI
-
-The database is created automatically on first run (`backend/data/cyberqrm.db`). All data stays on your local machine.
+| Threat intelligence | MITRE ATT&CK Enterprise (STIX 2.1) |
 
 ---
 
@@ -205,3 +221,5 @@ MIT — see [LICENSE](LICENSE) for details.
 ## Acknowledgements
 
 This project implements the [FAIR™ (Factor Analysis of Information Risk)](https://www.fairinstitute.org/) ontology. FAIR is a trademark of the FAIR Institute.
+
+ATT&CK® is a registered trademark of The MITRE Corporation. ATT&CK content is used under the [ATT&CK Terms of Use](https://attack.mitre.org/resources/terms-of-use/).
