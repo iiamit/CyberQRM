@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { controlsApi, scenariosApi } from '../utils/api';
-import { formatCurrency, formatPct } from '../utils/formatting';
+import { formatCurrency, formatPct, formatPercent } from '../utils/formatting';
 import { Header } from '../components/layout/Header';
 import { Modal } from '../components/ui/Modal';
 import { ControlForm } from '../components/forms/ControlForm';
@@ -134,11 +134,11 @@ export function Controls() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                         <div className="bg-gray-50 rounded p-2">
                           <p className="text-gray-500">Current Effectiveness</p>
-                          <p className="font-semibold text-gray-800">{formatPct(c.currentState.effectiveness)}</p>
+                          <p className="font-semibold text-gray-800">{formatPercent(c.currentState.effectiveness)}</p>
                         </div>
                         <div className="bg-brand-50 rounded p-2">
                           <p className="text-brand-600">Proposed Effectiveness</p>
-                          <p className="font-semibold text-brand-800">{formatPct(c.proposedState.effectiveness)}</p>
+                          <p className="font-semibold text-brand-800">{formatPercent(c.proposedState.effectiveness)}</p>
                         </div>
                         <div className="bg-gray-50 rounded p-2">
                           <p className="text-gray-500">Impl. Cost</p>
