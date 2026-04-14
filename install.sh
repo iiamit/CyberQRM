@@ -83,10 +83,47 @@ cd "$SCRIPT_DIR/frontend"
 npm install
 echo ""
 
-# ── 5. Ensure data directory exists ──────────────────────────
+# ── 5. Ensure data directories exist ─────────────────────────
 mkdir -p "$SCRIPT_DIR/backend/data"
+mkdir -p "$SCRIPT_DIR/backend/data/attack"
 
-# ── 6. Make start script executable ──────────────────────────
+# ── 6. Download MITRE ATT&CK dataset ─────────────────────────
+ATTACK_FILE="$SCRIPT_DIR/backend/data/attack/enterprise-attack-17.1.json"
+ATTACK_URL="https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-17.1.json"
+
+if [ -f "$ATTACK_FILE" ]; then
+  echo -e "  ${GREEN}✓${NC} MITRE ATT&CK dataset already present — skipping download."
+  echo ""
+else
+  echo -e "${BOLD}Downloading MITRE ATT&CK dataset (~30 MB)...${NC}"
+  echo "  Source: github.com/mitre-attack/attack-stix-data"
+  echo ""
+  if command -v curl &>/dev/null; then
+    if curl -L --fail --progress-bar "$ATTACK_URL" -o "$ATTACK_FILE"; then
+      echo -e "  ${GREEN}✓${NC} ATT&CK dataset downloaded successfully."
+    else
+      echo -e "  ${YELLOW}Warning: ATT&CK download failed.${NC} You can retry by re-running install.sh."
+      echo "  ATT&CK-based features will show 'data unavailable' until the file is present."
+      rm -f "$ATTACK_FILE"
+    fi
+  elif command -v wget &>/dev/null; then
+    if wget -q --show-progress "$ATTACK_URL" -O "$ATTACK_FILE"; then
+      echo -e "  ${GREEN}✓${NC} ATT&CK dataset downloaded successfully."
+    else
+      echo -e "  ${YELLOW}Warning: ATT&CK download failed.${NC} You can retry by re-running install.sh."
+      echo "  ATT&CK-based features will show 'data unavailable' until the file is present."
+      rm -f "$ATTACK_FILE"
+    fi
+  else
+    echo -e "  ${YELLOW}Warning: Neither curl nor wget found.${NC}"
+    echo "  Please manually download the ATT&CK dataset:"
+    echo "  $ATTACK_URL"
+    echo "  → save as: backend/data/attack/enterprise-attack-17.1.json"
+  fi
+  echo ""
+fi
+
+# ── 7. Make start script executable ──────────────────────────
 chmod +x "$SCRIPT_DIR/start.sh"
 
 # ── Done ──────────────────────────────────────────────────────

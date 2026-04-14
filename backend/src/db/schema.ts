@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS threat_event_frequencies (
   distributionType TEXT NOT NULL DEFAULT 'triangular',
   parameters       TEXT NOT NULL DEFAULT '{}',
   notes            TEXT DEFAULT '',
+  attackTechniques TEXT DEFAULT '[]',
   FOREIGN KEY (scenarioId) REFERENCES risk_scenarios(id) ON DELETE CASCADE
 );
 
@@ -50,6 +51,7 @@ CREATE TABLE IF NOT EXISTS vulnerabilities (
   parameters       TEXT NOT NULL DEFAULT '{}',
   relatedControls  TEXT DEFAULT '[]',
   notes            TEXT DEFAULT '',
+  attackTechniques TEXT DEFAULT '[]',
   FOREIGN KEY (scenarioId) REFERENCES risk_scenarios(id) ON DELETE CASCADE
 );
 
@@ -63,19 +65,26 @@ CREATE TABLE IF NOT EXISTS asset_values (
   parameters       TEXT NOT NULL DEFAULT '{}',
   valuationBasis   TEXT DEFAULT '',
   notes            TEXT DEFAULT '',
+  useMultipleBases INTEGER DEFAULT 0,
+  valuationBases   TEXT DEFAULT '[]',
   FOREIGN KEY (scenarioId) REFERENCES risk_scenarios(id) ON DELETE CASCADE
 );
 
 -- Loss Event Impacts
 CREATE TABLE IF NOT EXISTS loss_event_impacts (
-  id               TEXT PRIMARY KEY,
-  scenarioId       TEXT NOT NULL UNIQUE,
-  name             TEXT DEFAULT 'Loss Event Impact',
-  description      TEXT DEFAULT '',
-  distributionType TEXT NOT NULL DEFAULT 'triangular',
-  parameters       TEXT NOT NULL DEFAULT '{}',
-  impactComponents TEXT DEFAULT '[]',
-  notes            TEXT DEFAULT '',
+  id                      TEXT PRIMARY KEY,
+  scenarioId              TEXT NOT NULL UNIQUE,
+  name                    TEXT DEFAULT 'Loss Event Impact',
+  description             TEXT DEFAULT '',
+  distributionType        TEXT NOT NULL DEFAULT 'triangular',
+  parameters              TEXT NOT NULL DEFAULT '{}',
+  impactComponents        TEXT DEFAULT '[]',
+  notes                   TEXT DEFAULT '',
+  useAdvancedLoss         INTEGER DEFAULT 0,
+  primaryLossComponents   TEXT DEFAULT '[]',
+  slef                    TEXT DEFAULT NULL,
+  secondaryLossEnabled    INTEGER DEFAULT 0,
+  secondaryLossComponents TEXT DEFAULT '[]',
   FOREIGN KEY (scenarioId) REFERENCES risk_scenarios(id) ON DELETE CASCADE
 );
 

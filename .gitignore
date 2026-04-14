@@ -12,6 +12,9 @@ backend/data/cyberqrm.db
 backend/data/cyberqrm.db-shm
 backend/data/cyberqrm.db-wal
 
+# MITRE ATT&CK STIX dataset (large file, downloaded by install.sh/install.bat)
+backend/data/attack/
+
 # Environment files
 .env
 .env.local

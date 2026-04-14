@@ -7,8 +7,10 @@ import helmet from 'helmet';
 import scenarioRoutes from './routes/scenarios';
 import controlRoutes from './routes/controls';
 import portfolioRoutes from './routes/portfolios';
+import attackRoutes from './routes/attack';
 import { errorHandler } from './middleware/errorHandler';
 import { getDb } from './db/database';
+import { initAttackService } from './services/attackService';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,12 +31,14 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/scenarios', scenarioRoutes);
 app.use('/api/controls', controlRoutes);
 app.use('/api/portfolios', portfolioRoutes);
+app.use('/api/attack', attackRoutes);
 
 // ─── Error Handler ────────────────────────────────────────────
 app.use(errorHandler);
 
-// ─── Init DB & Start ──────────────────────────────────────────
-getDb(); // initialise schema on startup
+// ─── Init DB, ATT&CK & Start ─────────────────────────────────
+getDb(); // initialise schema + run migrations on startup
+initAttackService(); // load MITRE ATT&CK data (graceful if absent)
 app.listen(PORT, () => {
   console.log(`CyberQRM API running on http://localhost:${PORT}`);
 });

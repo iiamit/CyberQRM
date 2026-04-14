@@ -91,8 +91,24 @@ call npm install
 if errorlevel 1 ( echo. & echo  ERROR: Frontend npm install failed. & pause & exit /b 1 )
 echo.
 
-:: ── 5. Ensure data directory exists ─────────────────────────
+:: ── 5. Ensure data directories exist ────────────────────────
 if not exist "%~dp0backend\data" mkdir "%~dp0backend\data"
+if not exist "%~dp0backend\data\attack" mkdir "%~dp0backend\data\attack"
+
+:: ── 6. Download MITRE ATT&CK dataset ─────────────────────────
+set "ATTACK_FILE=%~dp0backend\data\attack\enterprise-attack-17.1.json"
+set "ATTACK_URL=https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-17.1.json"
+
+if exist "%ATTACK_FILE%" (
+    echo   OK  MITRE ATT^&CK dataset already present -- skipping download.
+    echo.
+) else (
+    echo Downloading MITRE ATT^&CK dataset ^(~30 MB^)...
+    echo   Source: github.com/mitre-attack/attack-stix-data
+    echo.
+    powershell -Command "try { Invoke-WebRequest -Uri '%ATTACK_URL%' -OutFile '%ATTACK_FILE%' -UseBasicParsing; Write-Host '  OK  ATT&CK dataset downloaded successfully.' } catch { Write-Host '  WARNING: ATT&CK download failed. ATT&CK features will show data unavailable.'; Write-Host '  You can retry by re-running install.bat, or download manually from:'; Write-Host '  %ATTACK_URL%'; if (Test-Path '%ATTACK_FILE%') { Remove-Item '%ATTACK_FILE%' } }"
+    echo.
+)
 
 :: ── Done ─────────────────────────────────────────────────────
 echo ============================================

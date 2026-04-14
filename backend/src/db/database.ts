@@ -5,6 +5,7 @@
 import path from 'path';
 import fs from 'fs';
 import { SCHEMA_SQL } from './schema';
+import { runMigrations } from './migrate';
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/cyberqrm.db');
 
@@ -65,6 +66,7 @@ export function getDb(): DB {
     }
     _db = createNodeSqliteAdapter(DB_PATH);
     _db.exec(SCHEMA_SQL);
+    runMigrations(_db);
   }
   return _db;
 }

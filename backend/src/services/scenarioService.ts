@@ -121,60 +121,72 @@ export function deleteScenario(id: string): boolean {
 function upsertTEF(scenarioId: string, data: any) {
   const db = getDb();
   const existing = db.prepare('SELECT id FROM threat_event_frequencies WHERE scenarioId = ?').get(scenarioId) as any;
+  const attackTechniques = JSON.stringify(data.attackTechniques ?? []);
   if (existing) {
     db.prepare(`
-      UPDATE threat_event_frequencies SET name=?, description=?, distributionType=?, parameters=?, notes=? WHERE scenarioId=?
-    `).run(data.name ?? 'Threat Event Frequency', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), data.notes ?? '', scenarioId);
+      UPDATE threat_event_frequencies SET name=?, description=?, distributionType=?, parameters=?, notes=?, attackTechniques=? WHERE scenarioId=?
+    `).run(data.name ?? 'Threat Event Frequency', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), data.notes ?? '', attackTechniques, scenarioId);
   } else {
     db.prepare(`
-      INSERT INTO threat_event_frequencies (id, scenarioId, name, description, distributionType, parameters, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(uuidv4(), scenarioId, data.name ?? 'Threat Event Frequency', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), data.notes ?? '');
+      INSERT INTO threat_event_frequencies (id, scenarioId, name, description, distributionType, parameters, notes, attackTechniques)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), scenarioId, data.name ?? 'Threat Event Frequency', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), data.notes ?? '', attackTechniques);
   }
 }
 
 function upsertVulnerability(scenarioId: string, data: any) {
   const db = getDb();
   const existing = db.prepare('SELECT id FROM vulnerabilities WHERE scenarioId = ?').get(scenarioId) as any;
+  const attackTechniques = JSON.stringify(data.attackTechniques ?? []);
   if (existing) {
     db.prepare(`
-      UPDATE vulnerabilities SET name=?, description=?, distributionType=?, parameters=?, relatedControls=?, notes=? WHERE scenarioId=?
-    `).run(data.name ?? 'Vulnerability', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), JSON.stringify(data.relatedControls ?? []), data.notes ?? '', scenarioId);
+      UPDATE vulnerabilities SET name=?, description=?, distributionType=?, parameters=?, relatedControls=?, notes=?, attackTechniques=? WHERE scenarioId=?
+    `).run(data.name ?? 'Vulnerability', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), JSON.stringify(data.relatedControls ?? []), data.notes ?? '', attackTechniques, scenarioId);
   } else {
     db.prepare(`
-      INSERT INTO vulnerabilities (id, scenarioId, name, description, distributionType, parameters, relatedControls, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(uuidv4(), scenarioId, data.name ?? 'Vulnerability', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), JSON.stringify(data.relatedControls ?? []), data.notes ?? '');
+      INSERT INTO vulnerabilities (id, scenarioId, name, description, distributionType, parameters, relatedControls, notes, attackTechniques)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), scenarioId, data.name ?? 'Vulnerability', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), JSON.stringify(data.relatedControls ?? []), data.notes ?? '', attackTechniques);
   }
 }
 
 function upsertAssetValue(scenarioId: string, data: any) {
   const db = getDb();
   const existing = db.prepare('SELECT id FROM asset_values WHERE scenarioId = ?').get(scenarioId) as any;
+  const useMultipleBases = data.useMultipleBases ? 1 : 0;
+  const valuationBases = JSON.stringify(data.valuationBases ?? []);
   if (existing) {
     db.prepare(`
-      UPDATE asset_values SET name=?, description=?, distributionType=?, parameters=?, valuationBasis=?, notes=? WHERE scenarioId=?
-    `).run(data.name ?? 'Asset Value', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), data.valuationBasis ?? '', data.notes ?? '', scenarioId);
+      UPDATE asset_values SET name=?, description=?, distributionType=?, parameters=?, valuationBasis=?, notes=?, useMultipleBases=?, valuationBases=? WHERE scenarioId=?
+    `).run(data.name ?? 'Asset Value', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), data.valuationBasis ?? '', data.notes ?? '', useMultipleBases, valuationBases, scenarioId);
   } else {
     db.prepare(`
-      INSERT INTO asset_values (id, scenarioId, name, description, distributionType, parameters, valuationBasis, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(uuidv4(), scenarioId, data.name ?? 'Asset Value', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), data.valuationBasis ?? '', data.notes ?? '');
+      INSERT INTO asset_values (id, scenarioId, name, description, distributionType, parameters, valuationBasis, notes, useMultipleBases, valuationBases)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), scenarioId, data.name ?? 'Asset Value', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), data.valuationBasis ?? '', data.notes ?? '', useMultipleBases, valuationBases);
   }
 }
 
 function upsertLossEventImpact(scenarioId: string, data: any) {
   const db = getDb();
   const existing = db.prepare('SELECT id FROM loss_event_impacts WHERE scenarioId = ?').get(scenarioId) as any;
+  const useAdvancedLoss = data.useAdvancedLoss ? 1 : 0;
+  const primaryLossComponents = JSON.stringify(data.primaryLossComponents ?? []);
+  const slef = data.slef ? JSON.stringify(data.slef) : null;
+  const secondaryLossEnabled = data.secondaryLossEnabled ? 1 : 0;
+  const secondaryLossComponents = JSON.stringify(data.secondaryLossComponents ?? []);
   if (existing) {
     db.prepare(`
-      UPDATE loss_event_impacts SET name=?, description=?, distributionType=?, parameters=?, impactComponents=?, notes=? WHERE scenarioId=?
-    `).run(data.name ?? 'Loss Event Impact', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), JSON.stringify(data.impactComponents ?? []), data.notes ?? '', scenarioId);
+      UPDATE loss_event_impacts SET name=?, description=?, distributionType=?, parameters=?, impactComponents=?, notes=?,
+        useAdvancedLoss=?, primaryLossComponents=?, slef=?, secondaryLossEnabled=?, secondaryLossComponents=?
+      WHERE scenarioId=?
+    `).run(data.name ?? 'Loss Event Impact', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), JSON.stringify(data.impactComponents ?? []), data.notes ?? '', useAdvancedLoss, primaryLossComponents, slef, secondaryLossEnabled, secondaryLossComponents, scenarioId);
   } else {
     db.prepare(`
-      INSERT INTO loss_event_impacts (id, scenarioId, name, description, distributionType, parameters, impactComponents, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(uuidv4(), scenarioId, data.name ?? 'Loss Event Impact', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), JSON.stringify(data.impactComponents ?? []), data.notes ?? '');
+      INSERT INTO loss_event_impacts (id, scenarioId, name, description, distributionType, parameters, impactComponents, notes,
+        useAdvancedLoss, primaryLossComponents, slef, secondaryLossEnabled, secondaryLossComponents)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), scenarioId, data.name ?? 'Loss Event Impact', data.description ?? '', data.distributionType, JSON.stringify(data.parameters), JSON.stringify(data.impactComponents ?? []), data.notes ?? '', useAdvancedLoss, primaryLossComponents, slef, secondaryLossEnabled, secondaryLossComponents);
   }
 }
 
@@ -186,22 +198,49 @@ function attachComponents(scenario: RiskScenario) {
 
   const tef = db.prepare('SELECT * FROM threat_event_frequencies WHERE scenarioId = ?').get(id) as any;
   if (tef) {
-    scenario.threatEventFrequency = { ...tef, parameters: parseJSON(tef.parameters, {}), notes: tef.notes ?? '' };
+    scenario.threatEventFrequency = {
+      ...tef,
+      parameters: parseJSON(tef.parameters, {}),
+      notes: tef.notes ?? '',
+      attackTechniques: parseJSON(tef.attackTechniques, []),
+    };
   }
 
   const vuln = db.prepare('SELECT * FROM vulnerabilities WHERE scenarioId = ?').get(id) as any;
   if (vuln) {
-    scenario.vulnerability = { ...vuln, parameters: parseJSON(vuln.parameters, {}), relatedControls: parseJSON(vuln.relatedControls, []), notes: vuln.notes ?? '' };
+    scenario.vulnerability = {
+      ...vuln,
+      parameters: parseJSON(vuln.parameters, {}),
+      relatedControls: parseJSON(vuln.relatedControls, []),
+      notes: vuln.notes ?? '',
+      attackTechniques: parseJSON(vuln.attackTechniques, []),
+    };
   }
 
   const av = db.prepare('SELECT * FROM asset_values WHERE scenarioId = ?').get(id) as any;
   if (av) {
-    scenario.assetValue = { ...av, parameters: parseJSON(av.parameters, {}), notes: av.notes ?? '' };
+    scenario.assetValue = {
+      ...av,
+      parameters: parseJSON(av.parameters, {}),
+      notes: av.notes ?? '',
+      useMultipleBases: !!av.useMultipleBases,
+      valuationBases: parseJSON(av.valuationBases, []),
+    };
   }
 
   const lei = db.prepare('SELECT * FROM loss_event_impacts WHERE scenarioId = ?').get(id) as any;
   if (lei) {
-    scenario.lossEventImpact = { ...lei, parameters: parseJSON(lei.parameters, {}), impactComponents: parseJSON(lei.impactComponents, []), notes: lei.notes ?? '' };
+    scenario.lossEventImpact = {
+      ...lei,
+      parameters: parseJSON(lei.parameters, {}),
+      impactComponents: parseJSON(lei.impactComponents, []),
+      notes: lei.notes ?? '',
+      useAdvancedLoss: !!lei.useAdvancedLoss,
+      primaryLossComponents: parseJSON(lei.primaryLossComponents, []),
+      slef: lei.slef ? parseJSON(lei.slef, null) : undefined,
+      secondaryLossEnabled: !!lei.secondaryLossEnabled,
+      secondaryLossComponents: parseJSON(lei.secondaryLossComponents, []),
+    };
   }
 }
 

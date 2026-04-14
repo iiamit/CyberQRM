@@ -36,6 +36,56 @@ export type DistributionParams =
   | { distributionType: 'lognormal'; parameters: LognormalParams }
   | { distributionType: 'point'; parameters: PointParams };
 
+// ─── MITRE ATT&CK ─────────────────────────────────────────────
+
+export interface AttackTechniqueRef {
+  techniqueId: string;              // e.g. "T1566.001"
+  name: string;
+  tactics: string[];
+  rationale?: string;
+  implementedMitigations?: string[]; // e.g. ["M1017", "M1031"]
+}
+
+// ─── Multi-Basis Asset Valuation ─────────────────────────────
+
+export type ValuationBasis =
+  | 'replacement_cost'
+  | 'revenue_impact'
+  | 'regulatory_exposure'
+  | 'business_interruption'
+  | 'reputational'
+  | 'custom';
+
+export interface ValuationEntry {
+  id: string;
+  basis: ValuationBasis;
+  customBasisLabel?: string;
+  description?: string;
+  distributionType: DistributionType;
+  parameters: TriangularParams | LognormalParams | PointParams;
+  notes?: string;
+}
+
+// ─── Primary / Secondary Loss ─────────────────────────────────
+
+export type PrimaryLossForm = 'productivity' | 'response' | 'replacement' | 'other';
+export type SecondaryLossForm = 'competitive_advantage' | 'fines_judgements' | 'reputation' | 'other';
+
+export interface LossComponent {
+  id: string;
+  form: PrimaryLossForm | SecondaryLossForm;
+  customLabel?: string;
+  description?: string;
+  distributionType: DistributionType;
+  parameters: TriangularParams | LognormalParams | PointParams;
+  notes?: string;
+}
+
+export interface SlefDistribution {
+  distributionType: DistributionType;
+  parameters: TriangularParams | LognormalParams | PointParams;
+}
+
 // ─── FAIR Components ─────────────────────────────────────────
 
 export interface ThreatEventFrequency {
@@ -47,6 +97,7 @@ export interface ThreatEventFrequency {
   parameters: TriangularParams | LognormalParams | PointParams;
   unitLabel: string;
   notes: string;
+  attackTechniques?: AttackTechniqueRef[];
 }
 
 export interface Vulnerability {
@@ -63,6 +114,7 @@ export interface Vulnerability {
     estimatedEffectiveness: number;
   }>;
   notes: string;
+  attackTechniques?: AttackTechniqueRef[];
 }
 
 export interface AssetValue {
@@ -75,6 +127,9 @@ export interface AssetValue {
   unitLabel: string;
   valuationBasis: string;
   notes: string;
+  // Advanced multi-basis mode
+  useMultipleBases?: boolean;
+  valuationBases?: ValuationEntry[];
 }
 
 export interface LossEventImpact {
@@ -91,6 +146,12 @@ export interface LossEventImpact {
     estimatedImpact: number;
   }>;
   notes: string;
+  // Advanced primary/secondary loss mode
+  useAdvancedLoss?: boolean;
+  primaryLossComponents?: LossComponent[];
+  slef?: SlefDistribution;
+  secondaryLossEnabled?: boolean;
+  secondaryLossComponents?: LossComponent[];
 }
 
 // ─── Simulation ───────────────────────────────────────────────
@@ -255,6 +316,33 @@ export interface SensitivityResult {
   upperALE: number;
   lowerImpactPercent: number;
   upperImpactPercent: number;
+}
+
+// ─── ATT&CK API types ─────────────────────────────────────────
+
+export interface AttackMitigation {
+  id: string;   // "M1017"
+  name: string;
+}
+
+export interface AttackTechniqueSummary {
+  id: string;           // "T1566.001"
+  name: string;
+  tactics: string[];
+  platforms: string[];
+  description: string;
+  isSubtechnique: boolean;
+  parentId?: string;
+  mitigations: AttackMitigation[];
+  groupCount: number;
+  prevalenceTier?: number; // 1=very common … 4=rare
+  tefSuggestion?: { min: number; mode: number; max: number };
+}
+
+export interface AttackSuggestion {
+  distributionType: 'triangular';
+  parameters: { min: number; mode: number; max: number };
+  rationale: string;
 }
 
 // ─── API Response shapes ──────────────────────────────────────

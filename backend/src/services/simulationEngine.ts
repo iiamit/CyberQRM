@@ -77,8 +77,8 @@ export function samplePoint(value: number): number {
 
 type ComponentLike = ThreatEventFrequency | Vulnerability | AssetValue | LossEventImpact;
 
-export function sampleComponent(component: ComponentLike, rng: () => number): number {
-  const { distributionType, parameters } = component as any;
+export function sampleComponent(component: { distributionType: string; parameters: any }, rng: () => number): number {
+  const { distributionType, parameters } = component;
   switch (distributionType) {
     case 'triangular': {
       const { min, mode, max } = parameters;
@@ -95,6 +95,46 @@ export function sampleComponent(component: ComponentLike, rng: () => number): nu
     default:
       throw new Error(`Unknown distribution type: ${distributionType}`);
   }
+}
+
+// ─── Multi-basis Asset Value sampler ─────────────────────────
+
+function sampleAssetValue(av: AssetValue, rng: () => number): number {
+  if (av.useMultipleBases && av.valuationBases && av.valuationBases.length > 0) {
+    return av.valuationBases.reduce(
+      (sum, basis) => sum + Math.max(0, sampleComponent(basis as any, rng)),
+      0
+    );
+  }
+  return Math.max(0, sampleComponent(av as any, rng));
+}
+
+// ─── Primary/Secondary Loss Magnitude sampler ─────────────────
+
+function sampleLossMagnitude(lei: LossEventImpact, avVal: number, rng: () => number): number {
+  if (lei.useAdvancedLoss && lei.primaryLossComponents && lei.primaryLossComponents.length > 0) {
+    // Primary loss: sum of absolute dollar distributions
+    const plm = lei.primaryLossComponents.reduce(
+      (sum, c) => sum + Math.max(0, sampleComponent(c as any, rng)),
+      0
+    );
+
+    // Secondary loss: SLEF × Σ secondary distributions
+    let slm = 0;
+    if (lei.secondaryLossEnabled && lei.slef && lei.secondaryLossComponents && lei.secondaryLossComponents.length > 0) {
+      const slef = Math.min(1, Math.max(0, sampleComponent(lei.slef as any, rng)));
+      const slem = lei.secondaryLossComponents.reduce(
+        (sum, c) => sum + Math.max(0, sampleComponent(c as any, rng)),
+        0
+      );
+      slm = slef * slem;
+    }
+
+    return plm + slm;
+  }
+
+  // Simple mode (backward compatible): fraction of asset value
+  return avVal * Math.min(1, Math.max(0, sampleComponent(lei as any, rng)));
 }
 
 // ─── Statistics Helpers ───────────────────────────────────────
@@ -154,13 +194,12 @@ export function runMonteCarloSimulation(input: SimulationInput): SimulationResul
   const samples = new Float64Array(iterations);
 
   for (let i = 0; i < iterations; i++) {
-    const tefVal = Math.max(0, sampleComponent(tef, rng));
-    const vulnVal = Math.min(1, Math.max(0, sampleComponent(vulnerability, rng)));
+    const tefVal = Math.max(0, sampleComponent(tef as any, rng));
+    const vulnVal = Math.min(1, Math.max(0, sampleComponent(vulnerability as any, rng)));
     const lef = tefVal * vulnVal;
 
-    const avVal = Math.max(0, sampleComponent(assetValue, rng));
-    const liVal = Math.min(1, Math.max(0, sampleComponent(lossEventImpact, rng)));
-    const lm = avVal * liVal;
+    const avVal = sampleAssetValue(assetValue, rng);
+    const lm = sampleLossMagnitude(lossEventImpact, avVal, rng);
 
     samples[i] = lef * lm;
   }
@@ -281,23 +320,22 @@ function cloneAndShift(scenario: RiskScenario, key: FAIRComponentKey, factor: nu
   const clone: RiskScenario = JSON.parse(JSON.stringify(scenario));
   switch (key) {
     case 'tef':
-      shiftComponent(clone.threatEventFrequency!, factor);
+      shiftComponent(clone.threatEventFrequency! as any, factor);
       break;
     case 'vulnerability':
-      shiftComponent(clone.vulnerability!, factor, true);
+      shiftComponent(clone.vulnerability! as any, factor, true);
       break;
     case 'assetValue':
-      shiftComponent(clone.assetValue!, factor);
+      shiftAssetValue(clone.assetValue!, factor);
       break;
     case 'lei':
-      shiftComponent(clone.lossEventImpact!, factor, true);
+      shiftLossEventImpact(clone.lossEventImpact!, factor);
       break;
   }
   return clone;
 }
 
-function shiftComponent(c: ComponentLike & { parameters: any }, factor: number, clamp01 = false): void {
-  const p = c.parameters;
+function shiftParams(p: any, factor: number, clamp01 = false): void {
   const shift = (v: number) => {
     const r = v * (1 + factor);
     return clamp01 ? Math.min(1, Math.max(0, r)) : Math.max(0, r);
@@ -311,6 +349,28 @@ function shiftComponent(c: ComponentLike & { parameters: any }, factor: number, 
     p.percentile90 = shift(p.percentile90);
   } else if ('value' in p) {
     p.value = shift(p.value);
+  }
+}
+
+function shiftComponent(c: { parameters: any }, factor: number, clamp01 = false): void {
+  shiftParams(c.parameters, factor, clamp01);
+}
+
+function shiftAssetValue(av: AssetValue, factor: number): void {
+  if (av.useMultipleBases && av.valuationBases?.length) {
+    av.valuationBases.forEach(b => shiftParams(b.parameters, factor));
+  } else {
+    shiftParams((av as any).parameters, factor);
+  }
+}
+
+function shiftLossEventImpact(lei: LossEventImpact, factor: number): void {
+  if (lei.useAdvancedLoss && lei.primaryLossComponents?.length) {
+    lei.primaryLossComponents.forEach(c => shiftParams(c.parameters, factor));
+    lei.secondaryLossComponents?.forEach(c => shiftParams(c.parameters, factor));
+    if (lei.slef) shiftParams((lei.slef as any).parameters, factor, true);
+  } else {
+    shiftParams((lei as any).parameters, factor, true);
   }
 }
 
@@ -375,20 +435,19 @@ function cloneWithEffectiveness(
   effectiveness: number
 ): RiskScenario {
   const clone: RiskScenario = JSON.parse(JSON.stringify(scenario));
-  // Effectiveness reduces the component's mode/value by (1 - effectiveness)
-  const reduction = 1 - effectiveness;
+  const factor = -(1 - (1 - effectiveness));
   switch (key) {
     case 'tef':
-      shiftComponent(clone.threatEventFrequency!, -(1 - reduction));
+      shiftComponent(clone.threatEventFrequency! as any, factor);
       break;
     case 'vulnerability':
-      shiftComponent(clone.vulnerability!, -(1 - reduction), true);
+      shiftComponent(clone.vulnerability! as any, factor, true);
       break;
     case 'assetValue':
-      shiftComponent(clone.assetValue!, -(1 - reduction));
+      shiftAssetValue(clone.assetValue!, factor);
       break;
     case 'lei':
-      shiftComponent(clone.lossEventImpact!, -(1 - reduction), true);
+      shiftLossEventImpact(clone.lossEventImpact!, factor);
       break;
   }
   return clone;

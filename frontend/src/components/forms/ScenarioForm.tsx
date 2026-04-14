@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { RiskScenario, DistributionType } from '@shared/types/fair';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  RiskScenario, DistributionType,
+  AttackTechniqueRef, AttackSuggestion,
+  ValuationEntry, LossComponent, SlefDistribution,
+} from '@shared/types/fair';
 import { FAIRComponentInput } from './FAIRComponentInput';
+import { ValuationBasisList } from './ValuationBasisList';
+import { PrimarySecondaryLossForm } from './PrimarySecondaryLossForm';
+import { AttackTechniqueSelector } from './AttackTechniqueSelector';
 
 interface ScenarioFormProps {
   initialData?: Partial<RiskScenario>;
@@ -25,31 +33,74 @@ export function ScenarioForm({ initialData, onSubmit, onCancel, isLoading }: Sce
     },
   });
 
-  // TEF state
+  // ── TEF state ────────────────────────────────────────────────
   const [tefDist, setTefDist] = useState<DistributionType>(initialData?.threatEventFrequency?.distributionType ?? 'triangular');
-  const [tefParams, setTefParams] = useState(initialData?.threatEventFrequency?.parameters ?? { min: 0.5, mode: 2, max: 10 });
+  const [tefParams, setTefParams] = useState<any>(initialData?.threatEventFrequency?.parameters ?? { min: 0.5, mode: 2, max: 10 });
   const [tefNotes, setTefNotes] = useState(initialData?.threatEventFrequency?.notes ?? '');
   const [tefDesc, setTefDesc] = useState(initialData?.threatEventFrequency?.description ?? '');
+  const [tefTechniques, setTefTechniques] = useState<AttackTechniqueRef[]>(initialData?.threatEventFrequency?.attackTechniques ?? []);
 
-  // Vulnerability state
+  // ── Vulnerability state ──────────────────────────────────────
   const [vulnDist, setVulnDist] = useState<DistributionType>(initialData?.vulnerability?.distributionType ?? 'triangular');
-  const [vulnParams, setVulnParams] = useState(initialData?.vulnerability?.parameters ?? { min: 0.1, mode: 0.3, max: 0.7 });
+  const [vulnParams, setVulnParams] = useState<any>(initialData?.vulnerability?.parameters ?? { min: 0.1, mode: 0.3, max: 0.7 });
   const [vulnNotes, setVulnNotes] = useState(initialData?.vulnerability?.notes ?? '');
   const [vulnDesc, setVulnDesc] = useState(initialData?.vulnerability?.description ?? '');
+  const [vulnTechniques, setVulnTechniques] = useState<AttackTechniqueRef[]>(initialData?.vulnerability?.attackTechniques ?? []);
 
-  // Asset Value state
+  // ── Asset Value state ────────────────────────────────────────
   const [avDist, setAvDist] = useState<DistributionType>(initialData?.assetValue?.distributionType ?? 'triangular');
-  const [avParams, setAvParams] = useState(initialData?.assetValue?.parameters ?? { min: 500000, mode: 2000000, max: 10000000 });
+  const [avParams, setAvParams] = useState<any>(initialData?.assetValue?.parameters ?? { min: 500000, mode: 2000000, max: 10000000 });
   const [avNotes, setAvNotes] = useState(initialData?.assetValue?.notes ?? '');
   const [avDesc, setAvDesc] = useState(initialData?.assetValue?.description ?? '');
   const [avBasis, setAvBasis] = useState(initialData?.assetValue?.valuationBasis ?? '');
+  const [useMultipleBases, setUseMultipleBases] = useState(initialData?.assetValue?.useMultipleBases ?? false);
+  const [valuationBases, setValuationBases] = useState<ValuationEntry[]>(
+    initialData?.assetValue?.valuationBases?.length
+      ? initialData.assetValue.valuationBases
+      : [{ id: uuidv4(), basis: 'replacement_cost', distributionType: 'triangular', parameters: { min: 500000, mode: 2000000, max: 10000000 } }]
+  );
 
-  // Loss Event Impact state
+  // ── Loss Event Impact state ──────────────────────────────────
   const [leiDist, setLeiDist] = useState<DistributionType>(initialData?.lossEventImpact?.distributionType ?? 'triangular');
-  const [leiParams, setLeiParams] = useState(initialData?.lossEventImpact?.parameters ?? { min: 0.05, mode: 0.2, max: 0.6 });
+  const [leiParams, setLeiParams] = useState<any>(initialData?.lossEventImpact?.parameters ?? { min: 0.05, mode: 0.2, max: 0.6 });
   const [leiNotes, setLeiNotes] = useState(initialData?.lossEventImpact?.notes ?? '');
   const [leiDesc, setLeiDesc] = useState(initialData?.lossEventImpact?.description ?? '');
+  const [useAdvancedLoss, setUseAdvancedLoss] = useState(initialData?.lossEventImpact?.useAdvancedLoss ?? false);
+  const [primaryComponents, setPrimaryComponents] = useState<LossComponent[]>(
+    initialData?.lossEventImpact?.primaryLossComponents?.length
+      ? initialData.lossEventImpact.primaryLossComponents
+      : [{ id: uuidv4(), form: 'productivity', distributionType: 'triangular', parameters: { min: 50000, mode: 200000, max: 1000000 } }]
+  );
+  const [slef, setSlef] = useState<SlefDistribution | undefined>(initialData?.lossEventImpact?.slef);
+  const [secondaryLossEnabled, setSecondaryLossEnabled] = useState(initialData?.lossEventImpact?.secondaryLossEnabled ?? false);
+  const [secondaryComponents, setSecondaryComponents] = useState<LossComponent[]>(
+    initialData?.lossEventImpact?.secondaryLossComponents ?? []
+  );
 
+  // ── Apply ATT&CK suggestion ──────────────────────────────────
+  const applyTefSuggestion = (s: AttackSuggestion) => {
+    setTefDist('triangular');
+    setTefParams(s.parameters);
+  };
+  const applyVulnSuggestion = (s: AttackSuggestion) => {
+    setVulnDist('triangular');
+    setVulnParams(s.parameters);
+  };
+
+  // ── Advanced loss state handler ──────────────────────────────
+  const handleAdvancedLossChange = (patch: {
+    primaryLossComponents?: LossComponent[];
+    slef?: SlefDistribution;
+    secondaryLossEnabled?: boolean;
+    secondaryLossComponents?: LossComponent[];
+  }) => {
+    if (patch.primaryLossComponents !== undefined) setPrimaryComponents(patch.primaryLossComponents);
+    if (patch.slef !== undefined) setSlef(patch.slef);
+    if (patch.secondaryLossEnabled !== undefined) setSecondaryLossEnabled(patch.secondaryLossEnabled);
+    if (patch.secondaryLossComponents !== undefined) setSecondaryComponents(patch.secondaryLossComponents);
+  };
+
+  // ── Final submission ─────────────────────────────────────────
   const handleFinalSubmit = handleSubmit(async (formData) => {
     const payload: Partial<RiskScenario> = {
       name: formData.name,
@@ -63,9 +114,10 @@ export function ScenarioForm({ initialData, onSubmit, onCancel, isLoading }: Sce
         name: 'Threat Event Frequency',
         description: tefDesc,
         distributionType: tefDist,
-        parameters: tefParams as any,
+        parameters: tefParams,
         unitLabel: 'events/year',
         notes: tefNotes,
+        attackTechniques: tefTechniques,
       },
       vulnerability: {
         id: initialData?.vulnerability?.id ?? '',
@@ -73,10 +125,11 @@ export function ScenarioForm({ initialData, onSubmit, onCancel, isLoading }: Sce
         name: 'Vulnerability',
         description: vulnDesc,
         distributionType: vulnDist,
-        parameters: vulnParams as any,
+        parameters: vulnParams,
         unitLabel: '0–1 (probability)',
         relatedControls: [],
         notes: vulnNotes,
+        attackTechniques: vulnTechniques,
       },
       assetValue: {
         id: initialData?.assetValue?.id ?? '',
@@ -84,10 +137,12 @@ export function ScenarioForm({ initialData, onSubmit, onCancel, isLoading }: Sce
         name: 'Asset Value',
         description: avDesc,
         distributionType: avDist,
-        parameters: avParams as any,
+        parameters: avParams,
         unitLabel: 'USD',
         valuationBasis: avBasis,
         notes: avNotes,
+        useMultipleBases,
+        valuationBases: useMultipleBases ? valuationBases : [],
       },
       lossEventImpact: {
         id: initialData?.lossEventImpact?.id ?? '',
@@ -95,10 +150,15 @@ export function ScenarioForm({ initialData, onSubmit, onCancel, isLoading }: Sce
         name: 'Loss Event Impact',
         description: leiDesc,
         distributionType: leiDist,
-        parameters: leiParams as any,
-        unitLabel: '0–1 (% of asset value lost)',
+        parameters: leiParams,
+        unitLabel: useAdvancedLoss ? 'USD (absolute)' : '0–1 (% of asset value lost)',
         impactComponents: [],
         notes: leiNotes,
+        useAdvancedLoss,
+        primaryLossComponents: useAdvancedLoss ? primaryComponents : [],
+        slef: useAdvancedLoss && secondaryLossEnabled ? slef : undefined,
+        secondaryLossEnabled: useAdvancedLoss ? secondaryLossEnabled : false,
+        secondaryLossComponents: useAdvancedLoss && secondaryLossEnabled ? secondaryComponents : [],
       },
     };
     await onSubmit(payload);
@@ -138,6 +198,12 @@ export function ScenarioForm({ initialData, onSubmit, onCancel, isLoading }: Sce
         <input className="input" placeholder="e.g., External ransomware actor targeting corporate network"
           value={tefDesc} onChange={e => setTefDesc(e.target.value)} />
       </div>
+      <AttackTechniqueSelector
+        mode="tef"
+        selected={tefTechniques}
+        onChange={setTefTechniques}
+        onApplySuggestion={applyTefSuggestion}
+      />
       <FAIRComponentInput
         label="Threat Event Frequency" unit="events/year"
         guidance="How often will a threat actor attempt to exploit this vulnerability per year? Typical ranges: nation-state = 10–100/yr, opportunistic = 1–10/yr, targeted = 0.1–5/yr."
@@ -154,6 +220,12 @@ export function ScenarioForm({ initialData, onSubmit, onCancel, isLoading }: Sce
         <input className="input" placeholder="e.g., Probability of successful phishing given email controls"
           value={vulnDesc} onChange={e => setVulnDesc(e.target.value)} />
       </div>
+      <AttackTechniqueSelector
+        mode="vuln"
+        selected={vulnTechniques}
+        onChange={setVulnTechniques}
+        onApplySuggestion={applyVulnSuggestion}
+      />
       <FAIRComponentInput
         label="Vulnerability" unit="probability (0–1)"
         guidance="What is the probability that the threat succeeds given an attempt? Consider your current controls. Typical ranges: no controls = 0.5–0.9, basic controls = 0.2–0.5, strong controls = 0.05–0.2."
@@ -171,54 +243,126 @@ export function ScenarioForm({ initialData, onSubmit, onCancel, isLoading }: Sce
         <input className="input" placeholder="e.g., Customer PII database – replacement cost + regulatory fines"
           value={avDesc} onChange={e => setAvDesc(e.target.value)} />
       </div>
-      <div>
-        <label className="label">Valuation Basis</label>
-        <select className="input" value={avBasis} onChange={e => setAvBasis(e.target.value)}>
-          <option value="">Select valuation basis...</option>
-          <option>Replacement cost</option>
-          <option>Revenue impact</option>
-          <option>Regulatory fine exposure</option>
-          <option>Business interruption</option>
-          <option>Reputational / brand damage</option>
-          <option>Combined estimate</option>
-        </select>
-      </div>
-      <FAIRComponentInput
-        label="Asset Value" unit="USD"
-        guidance="What is the total monetary value of the asset at risk? Include direct and indirect costs: replacement, regulatory fines, revenue loss, remediation, reputational damage."
-        distributionType={avDist} parameters={avParams}
-        allowLognormal={true}
-        onChange={(d, p) => { setAvDist(d); setAvParams(p); }}
-        notes={avNotes} onNotesChange={setAvNotes}
-      />
+
+      {/* Advanced toggle */}
+      <label className="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+        <input
+          type="checkbox"
+          className="w-4 h-4 text-brand-600 rounded"
+          checked={useMultipleBases}
+          onChange={e => setUseMultipleBases(e.target.checked)}
+        />
+        <div>
+          <span className="text-sm font-semibold text-gray-800">Advanced: use multiple valuation bases</span>
+          <p className="text-xs text-gray-500">
+            Model the asset as the sum of distinct value dimensions (e.g., replacement cost + regulatory exposure + revenue impact).
+          </p>
+        </div>
+      </label>
+
+      {useMultipleBases ? (
+        <ValuationBasisList entries={valuationBases} onChange={setValuationBases} />
+      ) : (
+        <>
+          <div>
+            <label className="label">Valuation Basis</label>
+            <select className="input" value={avBasis} onChange={e => setAvBasis(e.target.value)}>
+              <option value="">Select valuation basis...</option>
+              <option>Replacement cost</option>
+              <option>Revenue impact</option>
+              <option>Regulatory fine exposure</option>
+              <option>Business interruption</option>
+              <option>Reputational / brand damage</option>
+              <option>Combined estimate</option>
+            </select>
+          </div>
+          <FAIRComponentInput
+            label="Asset Value" unit="USD"
+            guidance="What is the total monetary value of the asset at risk? Include direct and indirect costs: replacement, regulatory fines, revenue loss, remediation, reputational damage."
+            distributionType={avDist} parameters={avParams}
+            allowLognormal={true}
+            onChange={(d, p) => { setAvDist(d); setAvParams(p); }}
+            notes={avNotes} onNotesChange={setAvNotes}
+          />
+        </>
+      )}
     </div>,
 
     // Step 4: Loss Event Impact
     <div className="space-y-4" key="lei">
       <div>
         <label className="label">Impact Description</label>
-        <input className="input" placeholder="e.g., Proportion of asset value lost per successful ransomware event"
+        <input className="input" placeholder="e.g., Breakdown of direct and secondary losses per ransomware event"
           value={leiDesc} onChange={e => setLeiDesc(e.target.value)} />
       </div>
-      <FAIRComponentInput
-        label="Loss Event Impact" unit="proportion of asset value (0–1)"
-        guidance="What proportion of the asset value is lost per event? 0.1 = 10% of asset value destroyed. Consider: confidentiality (data exposed), integrity (data corrupted), availability (downtime)."
-        distributionType={leiDist} parameters={leiParams}
-        clamp01={true}
-        onChange={(d, p) => { setLeiDist(d); setLeiParams(p); }}
-        notes={leiNotes} onNotesChange={setLeiNotes}
-      />
+
+      {/* Advanced toggle */}
+      <label className="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+        <input
+          type="checkbox"
+          className="w-4 h-4 text-brand-600 rounded"
+          checked={useAdvancedLoss}
+          onChange={e => setUseAdvancedLoss(e.target.checked)}
+        />
+        <div>
+          <span className="text-sm font-semibold text-gray-800">Advanced: split into Primary &amp; Secondary loss</span>
+          <p className="text-xs text-gray-500">
+            Model loss using FAIR loss forms (Productivity, Response, Replacement + Fines, Reputation) with a Secondary Loss Event Frequency (SLEF). Loss amounts are in absolute USD.
+          </p>
+        </div>
+      </label>
+
+      {useAdvancedLoss ? (
+        <PrimarySecondaryLossForm
+          primaryComponents={primaryComponents}
+          slef={slef}
+          secondaryLossEnabled={secondaryLossEnabled}
+          secondaryComponents={secondaryComponents}
+          onChange={handleAdvancedLossChange}
+        />
+      ) : (
+        <FAIRComponentInput
+          label="Loss Event Impact" unit="proportion of asset value (0–1)"
+          guidance="What proportion of the asset value is lost per event? 0.1 = 10% of asset value destroyed. Consider: confidentiality (data exposed), integrity (data corrupted), availability (downtime)."
+          distributionType={leiDist} parameters={leiParams}
+          clamp01={true}
+          onChange={(d, p) => { setLeiDist(d); setLeiParams(p); }}
+          notes={leiNotes} onNotesChange={setLeiNotes}
+        />
+      )}
     </div>,
 
     // Step 5: Review
     <div className="space-y-4" key="review">
-      <h3 className="font-semibold text-gray-800">Review & Simulation Config</h3>
+      <h3 className="font-semibold text-gray-800">Review &amp; Simulation Config</h3>
       <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
         <div className="grid grid-cols-2 gap-2">
-          <div><span className="text-gray-500">TEF:</span> <span className="font-medium">{tefDist}</span></div>
-          <div><span className="text-gray-500">Vulnerability:</span> <span className="font-medium">{vulnDist}</span></div>
-          <div><span className="text-gray-500">Asset Value:</span> <span className="font-medium">{avDist}</span></div>
-          <div><span className="text-gray-500">Loss Impact:</span> <span className="font-medium">{leiDist}</span></div>
+          <div>
+            <span className="text-gray-500">TEF:</span>{' '}
+            <span className="font-medium">{tefDist}</span>
+            {tefTechniques.length > 0 && (
+              <span className="ml-1 text-xs text-blue-600">{tefTechniques.length} ATT&CK technique{tefTechniques.length !== 1 ? 's' : ''}</span>
+            )}
+          </div>
+          <div>
+            <span className="text-gray-500">Vulnerability:</span>{' '}
+            <span className="font-medium">{vulnDist}</span>
+            {vulnTechniques.length > 0 && (
+              <span className="ml-1 text-xs text-blue-600">{vulnTechniques.length} ATT&CK technique{vulnTechniques.length !== 1 ? 's' : ''}</span>
+            )}
+          </div>
+          <div>
+            <span className="text-gray-500">Asset Value:</span>{' '}
+            <span className="font-medium">{useMultipleBases ? `${valuationBases.length} bases` : avDist}</span>
+          </div>
+          <div>
+            <span className="text-gray-500">Loss Impact:</span>{' '}
+            <span className="font-medium">
+              {useAdvancedLoss
+                ? `Advanced (${primaryComponents.length} primary${secondaryLossEnabled ? ` + ${secondaryComponents.length} secondary` : ''})`
+                : leiDist}
+            </span>
+          </div>
         </div>
       </div>
       <div>
