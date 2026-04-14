@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AttackTechniqueRef, AttackTechniqueSummary, AttackSuggestion } from '@shared/types/fair';
-import { api } from '../../utils/api';
+import api from '../../utils/api';
 
 interface AttackTactic {
   id: string;
